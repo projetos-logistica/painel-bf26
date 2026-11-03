@@ -1,0 +1,24 @@
+# Ambientes Virtuais
+venv/
+env/
+.venv/
+ENV/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.pyd
+
+# Arquivos de dados locais (mantendo a pasta data viva com .gitkeep)
+# Descomente abaixo se não quiser versionar os dados da operação no repositório:
+# data/*.parquet
+# data/*.xlsx
+# data/*.csv
+!data/.gitkeep
+
+# IDEs e Sistema
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
