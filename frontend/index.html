@@ -694,10 +694,19 @@ const ALL_PERIOD = 'Todo o período';
 const initFilters = () => ({ period: ALL_PERIOD, origin: 'Todas', bu: 'Todas', brand: 'Todas', carrier: 'Todas' });
 const S = { ltview: 'chart', ltsort: 'lt', tab: 'painel', orders: null, colls: null, f: initFilters(), cf: { date: ALL_PERIOD, carrier: 'Todas', uf: 'Todas' }, strat: 'carrier', dview: 'orders', open: new Set(), busy: '', msg: null };
 
-function sendToStreamlit(type, data) {
+function saveState(kind) {
   try {
-    window.parent.postMessage({ isStreamlitMessage: true, type: "streamlit:setComponentValue", value: { type, data, timestamp: Date.now() } }, "*");
+    if (S[kind]) localStorage.setItem('bf26_' + kind, JSON.stringify(S[kind]));
   } catch (e) {}
+}
+function loadState(kind) {
+  try {
+    const raw = localStorage.getItem('bf26_' + kind);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    if (parsed && parsed.loadedAt) parsed.loadedAt = new Date(parsed.loadedAt);
+    return parsed;
+  } catch (e) { return null; }
 }
 
 async function load(kind, file) {
@@ -708,13 +717,13 @@ async function load(kind, file) {
       S.orders = await buildPedidos(file, { onProgress });
       S.orders.loadedAt = new Date();
       S.f = initFilters();
+      saveState('orders');
       S.msg = { ok: true, t: nf.format(S.orders.sourceRows) + ' linhas lidas → ' + nf.format(S.orders.records.length) + ' coortes (' + (S.orders.ms / 1000).toFixed(1).replace('.', ',') + ' s).' };
-      sendToStreamlit('orders', S.orders);
     } else {
       S.colls = await buildColetas(file, { onProgress });
       S.cf = { date: ALL_PERIOD, carrier: 'Todas', uf: 'Todas' };
+      saveState('colls');
       S.msg = { ok: true, t: nf.format(S.colls.sourceRows) + ' coletas processadas com sucesso.' };
-      sendToStreamlit('colls', S.colls);
     }
   } catch (e) { S.msg = { ok: false, t: e.message || 'Arquivo inválido.' }; }
   S.busy = ''; renderBody();
@@ -965,20 +974,13 @@ tick(); setInterval(tick, 1000);
   });
 })();
 
-// Conexão com Streamlit Component (carrega dados pré-salvos se existirem)
-window.addEventListener("message", function(event) {
-  if (event.data && event.data.type === "streamlit:render") {
-    const args = event.data.args || {};
-    if (args.initial_orders && !S.orders) {
-      S.orders = args.initial_orders;
-      renderBody();
-    }
-    if (args.initial_colls && !S.colls) {
-      S.colls = args.initial_colls;
-      if (S.tab === 'coletas') renderBody();
-    }
-  }
-});
+// Restaura dados salvos localmente se existirem
+try {
+  const savedOrders = loadState('orders');
+  if (savedOrders) S.orders = savedOrders;
+  const savedColls = loadState('colls');
+  if (savedColls) S.colls = savedColls;
+} catch (e) {}
 
 renderBody();
 </script></body></html>

@@ -1,11 +1,10 @@
 """
 Painel BF26 – Aplicação Web Streamlit (Azzas 2154 - Soma & Reserva)
-Renderiza a interface idêntica ao painel original do N8N com layout 100% fiel,
-armazenamento compartilhado em disco e sem dependência do SQL Server.
+Renderiza a interface idêntica ao painel original do N8N diretamente via HTML/JS,
+sem dependência do SQL Server e sem travamentos de handshake de componentes.
 """
 
 import os
-import json
 import streamlit as st
 import streamlit.components.v1 as components
 
@@ -35,53 +34,21 @@ st.markdown("""
         border: none !important;
         margin: 0 !important;
         padding: 0 !important;
-        z-index: 1000 !important;
+        z-index: 999999 !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
-# Diretório de armazenamento persistente no servidor
-DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
-os.makedirs(DATA_DIR, exist_ok=True)
-ORDERS_JSON = os.path.join(DATA_DIR, "saved_orders.json")
-COLLS_JSON = os.path.join(DATA_DIR, "saved_colls.json")
+# Lê o arquivo HTML completo com o layout original do N8N
+frontend_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend", "index.html")
 
-def load_saved_data(filepath):
-    if os.path.exists(filepath):
-        try:
-            with open(filepath, "r", encoding="utf-8") as f:
-                return json.load(f)
-        except Exception:
-            return None
-    return None
+if not os.path.exists(frontend_file):
+    st.error("Arquivo de interface 'frontend/index.html' não encontrado.")
+    st.stop()
 
-def save_data(filepath, data):
-    try:
-        with open(filepath, "w", encoding="utf-8") as f:
-            json.dump(data, f, ensure_ascii=False)
-    except Exception:
-        pass
+with open(frontend_file, "r", encoding="utf-8") as f:
+    html_content = f.read()
 
-# Carrega os dados salvos previamente (compartilhados entre SOMA e Reserva)
-initial_orders = load_saved_data(ORDERS_JSON)
-initial_colls = load_saved_data(COLLS_JSON)
+# Renderiza diretamente o HTML puro no Streamlit (carrega instantaneamente sem erro de componente)
+components.html(html_content, height=1200, scrolling=True)
 
-# Declaração do componente com o HTML/CSS original
-frontend_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "frontend")
-painel_component = components.declare_component("painel_bf26_exact", path=frontend_dir)
-
-# Renderização do painel idêntico
-event = painel_component(
-    initial_orders=initial_orders,
-    initial_colls=initial_colls,
-    key="painel_exact_view"
-)
-
-# Se um usuário fizer upload de uma nova planilha, salva para todos
-if event and isinstance(event, dict):
-    ev_type = event.get("type")
-    ev_data = event.get("data")
-    if ev_type == "orders" and ev_data:
-        save_data(ORDERS_JSON, ev_data)
-    elif ev_type == "colls" and ev_data:
-        save_data(COLLS_JSON, ev_data)
